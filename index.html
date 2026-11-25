@@ -1,0 +1,3081 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TLALOC</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icono.png">
+  <link rel="apple-touch-icon" href="icono.png">
+  <meta name="theme-color" content="#1e62d0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* =========================================================
+       1. ESTILOS BASE Y TEMA DINÁMICO
+       ========================================================= */
+    :root {
+      --fondo-arriba: #1e62d0;
+      --fondo-abajo: #5da9ff;
+      --tarjeta: rgba(255, 255, 255, 0.16);
+      --borde-tarjeta: rgba(255, 255, 255, 0.25);
+      --texto: #ffffff;
+      --acento: #ffd166;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(180deg, var(--fondo-arriba) 0%, var(--fondo-abajo) 100%);
+      color: var(--texto);
+      min-height: 100vh;
+      transition: background 0.8s ease;
+    }
+
+    body.noche {
+      --fondo-arriba: #0b132b;
+      --fondo-abajo: #1c2541;
+      --tarjeta: rgba(255, 255, 255, 0.09);
+      --borde-tarjeta: rgba(255, 255, 255, 0.15);
+    }
+
+    .app-contenedor {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px 16px 65px;
+    }
+
+    /* =========================================================
+       2. NAVEGACIÓN SUPERIOR POR PESTAÑAS (CLIMA / CAMPO)
+       ========================================================= */
+    .nav-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.22);
+      padding: 6px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--borde-tarjeta);
+      backdrop-filter: blur(10px);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.78);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 11px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn.activa {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .tab-btn.activa-campo {
+      background: #4ade80;
+      color: #052e16;
+      box-shadow: 0 4px 12px rgba(74, 222, 128, 0.35);
+    }
+
+    .vista-seccion {
+      display: none;
+    }
+
+    .vista-seccion.activa {
+      display: block;
+    }
+
+    /* =========================================================
+       3. BUSCADOR Y BOTÓN GPS
+       ========================================================= */
+    .barra-busqueda {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .input-ciudad {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.22);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 14px;
+      padding: 12px 16px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      backdrop-filter: blur(10px);
+    }
+
+    .input-ciudad::placeholder {
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .btn-icono {
+      background: rgba(255, 255, 255, 0.22);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 14px;
+      width: 46px;
+      height: 46px;
+      font-size: 19px;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-icono:active {
+      transform: scale(0.95);
+    }
+
+    .resultados-lista {
+      background: #162447;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+
+    .resultado-item {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .resultado-item:last-child {
+      border-bottom: none;
+    }
+
+    .resultado-item:hover {
+      background: rgba(255,255,255,0.12);
+    }
+
+    .resultado-item small {
+      display: block;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    /* =========================================================
+       4. BARRA DE CIUDADES FAVORITAS Y BIENVENIDA
+       ========================================================= */
+    .favoritas-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+
+    .favoritas-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip-favorita {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde-tarjeta);
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-favorita.activa {
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    .estado-vacio {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 24px;
+      padding: 40px 22px;
+      text-align: center;
+      margin-top: 10px;
+      backdrop-filter: blur(12px);
+    }
+
+    .estado-vacio h2 {
+      font-size: 20px;
+      margin: 12px 0 8px;
+    }
+
+    .estado-vacio p {
+      font-size: 14px;
+      opacity: 0.85;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .btn-principal {
+      background: var(--acento);
+      color: #0f172a;
+      border: none;
+      padding: 13px 22px;
+      border-radius: 14px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    /* =========================================================
+       5. TARJETA PRINCIPAL DEL CLIMA ACTUAL
+       ========================================================= */
+    .panel-clima {
+      display: none;
+    }
+
+    .cabecera-ciudad {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .nombre-ciudad {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .region-ciudad {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .btn-favorito {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 12px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-favorito.guardada {
+      background: var(--acento);
+      color: #0f172a;
+      border-color: var(--acento);
+    }
+
+    .hero-clima {
+      text-align: center;
+      padding: 12px 0 20px;
+    }
+
+    .icono-grande {
+      font-size: 74px;
+      line-height: 1;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.2));
+    }
+
+    .temperatura-actual {
+      font-size: 68px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .descripcion-clima {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .max-min {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .detalles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .detalle-caja {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 16px;
+      padding: 12px 8px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .detalle-caja small {
+      display: block;
+      font-size: 11px;
+      opacity: 0.8;
+      margin-bottom: 4px;
+    }
+
+    .detalle-caja strong {
+      font-size: 16px;
+    }
+
+    /* =========================================================
+       6. PRONÓSTICO POR HORAS Y SEMANAL
+       ========================================================= */
+    .tarjeta-seccion {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde-tarjeta);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .titulo-bloque {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      opacity: 0.85;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .horas-scroll {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+
+    .horas-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .hora-item {
+      min-width: 58px;
+      text-align: center;
+      background: rgba(255,255,255,0.08);
+      padding: 10px 6px;
+      border-radius: 14px;
+    }
+
+    .hora-item span {
+      display: block;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .hora-item .h-icono {
+      font-size: 22px;
+      margin: 6px 0;
+    }
+
+    .hora-item strong {
+      font-size: 15px;
+    }
+
+    .hora-item .h-lluvia {
+      font-size: 11px;
+      color: #93c5fd;
+      margin-top: 2px;
+    }
+
+    .dia-fila {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 14px;
+    }
+
+    .dia-fila:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .dia-nombre {
+      width: 95px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    .dia-lluvia {
+      color: #93c5fd;
+      font-size: 12px;
+      width: 55px;
+      text-align: center;
+    }
+
+    .dia-temps {
+      font-weight: 700;
+    }
+
+    .dia-temps span {
+      opacity: 0.65;
+      font-weight: 400;
+      margin-left: 6px;
+    }
+
+    /* =========================================================
+       7. TARJETA DE FASES DE LA LUNA (4 ETAPAS CON FECHA)
+       ========================================================= */
+    .luna-contenedor {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .luna-esfera {
+      width: 68px;
+      height: 68px;
+      min-width: 68px;
+      border-radius: 50%;
+      background: #fef08a;
+      box-shadow: 0 0 20px rgba(254, 240, 138, 0.45), inset -6px -4px 12px rgba(0,0,0,0.25);
+      position: relative;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .luna-sombra {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      background: #0f172a;
+      transition: transform 0.5s ease;
+    }
+
+    .luna-info h3 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 3px;
+      color: #fef08a;
+    }
+
+    .luna-info p {
+      font-size: 13px;
+      opacity: 0.88;
+      line-height: 1.4;
+    }
+
+    .luna-consejo-campo {
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .luna-consejo-campo strong {
+      color: #6ee7b7;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .luna-fechas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .luna-fecha-caja {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .luna-fecha-caja strong {
+      display: block;
+      font-size: 14px;
+      margin-top: 3px;
+      color: #fef08a;
+    }
+
+    /* =========================================================
+       8. MÓDULO DE CAMPO: BUSCADOR, CONSEJOS Y MIS SIEMBRAS
+       ========================================================= */
+    .tarjeta-agro {
+      background: linear-gradient(180deg, rgba(20, 83, 45, 0.65) 0%, rgba(15, 23, 42, 0.78) 100%);
+      border: 1px solid rgba(74, 222, 128, 0.38);
+    }
+
+    .filtro-semilla {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 10px;
+    }
+
+    .filtro-semilla::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .cultivos-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      scrollbar-width: none;
+    }
+
+    .cultivos-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip-cultivo {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip-cultivo.activo {
+      background: #4ade80;
+      color: #052e16;
+      border-color: #4ade80;
+      box-shadow: 0 4px 12px rgba(74, 222, 128, 0.3);
+    }
+
+    .ficha-cultivo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .ficha-izq {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ficha-icono {
+      font-size: 36px;
+      background: rgba(255,255,255,0.1);
+      width: 54px;
+      height: 54px;
+      min-width: 54px;
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .ficha-titulo h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #86efac;
+    }
+
+    .ficha-titulo span {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .btn-consejos {
+      background: rgba(254, 240, 138, 0.2);
+      border: 1px solid rgba(254, 240, 138, 0.5);
+      color: #fef08a;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-consejos.abierto {
+      background: #fef08a;
+      color: #0f172a;
+    }
+
+    .panel-consejos {
+      display: none;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(254, 240, 138, 0.35);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panel-consejos.visible {
+      display: block;
+    }
+
+    .consejo-etapa {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .consejo-etapa:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .consejo-etapa strong {
+      display: block;
+      color: #fef08a;
+      margin-bottom: 2px;
+      font-size: 13px;
+    }
+
+    .datos-agro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .dato-agro-caja {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .dato-agro-caja small {
+      display: block;
+      opacity: 0.75;
+      margin-bottom: 2px;
+    }
+
+    .dato-agro-caja strong {
+      font-size: 13px;
+      color: #fef08a;
+    }
+
+    .alerta-clima-agro {
+      background: rgba(251, 191, 36, 0.16);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      margin-bottom: 14px;
+      color: #fef3c7;
+    }
+
+    .calculadora-cosecha {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .calc-fila {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .calc-fila label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .input-fecha {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      color-scheme: dark;
+    }
+
+    .resultado-cosecha {
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding-top: 12px;
+    }
+
+    .cosecha-fecha-texto {
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .cosecha-fecha-texto strong {
+      color: #4ade80;
+      font-size: 15px;
+    }
+
+    .barra-progreso-fondo {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .barra-progreso-relleno {
+      height: 100%;
+      background: linear-gradient(90deg, #4ade80, #facc15);
+      border-radius: 10px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .etapa-actual-texto {
+      font-size: 12px;
+      opacity: 0.85;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .btn-guardar-siembra {
+      width: 100%;
+      background: #4ade80;
+      color: #052e16;
+      border: none;
+      border-radius: 12px;
+      padding: 11px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .form-guardar-siembra {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .form-guardar-siembra.visible {
+      display: block;
+    }
+
+    .form-grid-terreno {
+      display: grid;
+      grid-template-columns: 1fr 142px;
+      gap: 8px;
+      margin: 8px 0 10px;
+    }
+
+    .input-agro {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 10px;
+      padding: 9px 10px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .input-agro option {
+      background: #0f172a;
+      color: #fff;
+    }
+
+    .acciones-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-cancelar {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Lista de Mis Siembras Guardadas */
+    .siembra-card {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    .siembra-card:active {
+      transform: scale(0.98);
+    }
+
+    .siembra-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .siembra-card-titulo {
+      font-size: 15px;
+      font-weight: 800;
+      color: #86efac;
+    }
+
+    .siembra-card-badge {
+      background: rgba(74, 222, 128, 0.2);
+      color: #86efac;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 8px;
+    }
+
+    .siembra-card-sub {
+      font-size: 12.5px;
+      opacity: 0.85;
+      margin-bottom: 8px;
+    }
+
+    /* =========================================================
+       9. EXPEDIENTE DETALLADO DE SIEMBRA (FERTILIZANTES / PLAGAS / NOTAS)
+       ========================================================= */
+    .expediente-panel {
+      display: none;
+    }
+
+    .expediente-panel.activo {
+      display: block;
+    }
+
+    .barra-volver {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .btn-volver {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-eliminar-siembra {
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fecaca;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .caja-terreno-vivo {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .caja-terreno-vivo label {
+      display: block;
+      font-size: 12px;
+      opacity: 0.85;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .subtabs-expediente {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 5px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+
+    .subtab-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.78);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 9px 4px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .subtab-btn.activa {
+      background: #4ade80;
+      color: #052e16;
+    }
+
+    .subvista-exp {
+      display: none;
+    }
+
+    .subvista-exp.activa {
+      display: block;
+    }
+
+    /* Selector interactivo de fertilizantes */
+    .selector-fert-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .selector-fert-box small {
+      display: block;
+      font-size: 12px;
+      opacity: 0.85;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .chips-seleccion-fert {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-fert-toggle {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      padding: 7px 11px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip-fert-toggle.marcado {
+      background: #4ade80;
+      color: #052e16;
+      border-color: #4ade80;
+    }
+
+    /* Tarjeta de fertilizante o pesticida con ilustración */
+    .fert-card {
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .fert-top {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .fert-ilustracion {
+      width: 64px;
+      height: 72px;
+      min-width: 64px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      padding: 4px;
+    }
+
+    .fert-ilustracion img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .fert-info h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fef08a;
+      margin-bottom: 2px;
+    }
+
+    .fert-info p {
+      font-size: 12px;
+      opacity: 0.85;
+      line-height: 1.35;
+    }
+
+    .fert-calculo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 8px;
+      text-align: center;
+      align-items: center;
+    }
+
+    .fert-dato small {
+      display: block;
+      font-size: 10.5px;
+      opacity: 0.75;
+      margin-bottom: 2px;
+    }
+
+    .fert-dato strong {
+      font-size: 13.5px;
+      color: #4ade80;
+    }
+
+    .input-precio-fert {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(254, 240, 138, 0.5);
+      border-radius: 8px;
+      padding: 5px 6px;
+      color: #fef08a;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+    }
+
+    .resumen-presupuesto {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35));
+      border: 1px solid rgba(74, 222, 128, 0.5);
+      border-radius: 16px;
+      padding: 14px;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .resumen-presupuesto small {
+      display: block;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .resumen-presupuesto strong {
+      display: block;
+      font-size: 24px;
+      color: #fef08a;
+      margin: 4px 0 10px;
+    }
+
+    .btn-whatsapp {
+      width: 100%;
+      background: #25D366;
+      color: #052e16;
+      border: none;
+      border-radius: 12px;
+      padding: 11px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    /* Selector de Plagas y Tarjetas Individuales de Pesticidas */
+    .plagas-selector-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      scrollbar-width: none;
+    }
+
+    .plagas-selector-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip-plaga {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #fff;
+      padding: 8px 13px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .chip-plaga.activa {
+      background: #fef08a;
+      color: #0f172a;
+      border-color: #fef08a;
+    }
+
+    .plaga-card {
+      background: rgba(255, 255, 255, 0.08);
+      border-left: 4px solid #f59e0b;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .plaga-card.critica {
+      border-left-color: #ef4444;
+      background: rgba(239, 68, 68, 0.14);
+    }
+
+    .plaga-card h4 {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #fef08a;
+    }
+
+    .plaga-card p {
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 10px;
+      opacity: 0.92;
+    }
+
+    .plaga-control {
+      background: rgba(0, 0, 0, 0.25);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: #86efac;
+    }
+
+    .titulo-pesticidas-sub {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #fca5a5;
+      font-weight: 800;
+      margin: 14px 0 10px;
+    }
+
+    .pesticida-card {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .pesticida-ficha-aplicacion {
+      background: rgba(0, 0, 0, 0.28);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #e2e8f0;
+    }
+
+    .pesticida-ficha-aplicacion strong {
+      color: #fca5a5;
+    }
+
+    /* Bitácora */
+    .nota-item {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .nota-item small {
+      display: block;
+      color: #fef08a;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    /* Botones de Respaldo */
+    .respaldo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-respaldo {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border-radius: 10px;
+      padding: 9px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-contenedor">
+
+    <!-- NAVEGACIÓN SUPERIOR: CLIMA / CAMPO -->
+    <nav class="nav-tabs">
+      <button id="tab-clima" class="tab-btn activa" onclick="cambiarPestana('clima')">🌦️ Clima</button>
+      <button id="tab-campo" class="tab-btn" onclick="cambiarPestana('campo')">🌾 Campo</button>
+    </nav>
+
+    <!-- =========================================================
+         PESTAÑA 1: CLIMA Y FASES DE LA LUNA
+         ========================================================= -->
+    <div id="vista-clima" class="vista-seccion activa">
+      
+      <div class="barra-busqueda">
+        <input type="text" id="input-buscar" class="input-ciudad" placeholder="Buscar ciudad o municipio..." onkeyup="if(event.key==='Enter') buscarCiudad()">
+        <button class="btn-icono" onclick="buscarCiudad()" title="Buscar">🔍</button>
+        <button class="btn-icono" onclick="usarGPS()" title="Mi ubicación actual">📍</button>
+      </div>
+
+      <div id="resultados-lista" class="resultados-lista"></div>
+      <div id="favoritas-contenedor" class="favoritas-scroll"></div>
+
+      <div id="estado-vacio" class="estado-vacio">
+        <div style="font-size: 54px;">⛅</div>
+        <h2>TLALOC · Clima y Campo</h2>
+        <p>Busca tu ciudad o municipio arriba para guardarlo en tus favoritos, o usa tu ubicación actual.</p>
+        <button class="btn-principal" onclick="usarGPS()">📍 Usar mi ubicación actual</button>
+      </div>
+
+      <main id="panel-clima" class="panel-clima">
+        <div class="cabecera-ciudad">
+          <div>
+            <h1 id="ciudad-nombre" class="nombre-ciudad">--</h1>
+            <p id="ciudad-region" class="region-ciudad">--</p>
+          </div>
+          <button id="btn-favorito" class="btn-favorito" onclick="toggleFavorita()">☆ Guardar</button>
+        </div>
+
+        <div class="hero-clima">
+          <div id="clima-icono" class="icono-grande">☀️</div>
+          <div id="clima-temp" class="temperatura-actual">--°</div>
+          <div id="clima-desc" class="descripcion-clima">Cargando...</div>
+          <div id="clima-maxmin" class="max-min">Máx: --° · Mín: --°</div>
+        </div>
+
+        <div class="detalles-grid">
+          <div class="detalle-caja">
+            <small>💧 Humedad</small>
+            <strong id="detalle-humedad">--%</strong>
+          </div>
+          <div class="detalle-caja">
+            <small>🌧️ Prob. Lluvia</small>
+            <strong id="detalle-lluvia">--%</strong>
+          </div>
+          <div class="detalle-caja">
+            <small>💨 Viento</small>
+            <strong id="detalle-viento">-- km/h</strong>
+          </div>
+        </div>
+
+        <section class="tarjeta-seccion">
+          <h2 class="titulo-bloque">Próximas horas</h2>
+          <div id="horas-lista" class="horas-scroll"></div>
+        </section>
+
+        <section class="tarjeta-seccion">
+          <h2 class="titulo-bloque">Pronóstico 7 días</h2>
+          <div id="dias-lista"></div>
+        </section>
+
+        <section class="tarjeta-seccion">
+          <h2 class="titulo-bloque">Fase Lunar Hoy y Calendario</h2>
+          
+          <div class="luna-contenedor">
+            <div class="luna-esfera">
+              <div id="luna-sombra" class="luna-sombra"></div>
+            </div>
+            <div class="luna-info">
+              <h3 id="luna-nombre">Calculando...</h3>
+              <p id="luna-detalle">Iluminación: --% · Día -- del ciclo</p>
+            </div>
+          </div>
+
+          <div class="luna-consejo-campo">
+            <strong>🌱 Actividad recomendada en el campo:</strong>
+            <span id="luna-consejo">--</span>
+          </div>
+
+          <div class="luna-fechas-grid" id="luna-4-fases-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <!-- =========================================================
+         PESTAÑA 2: CAMPO (GUÍA DE SIEMBRA + MIS SIEMBRAS + EXPEDIENTE)
+         ========================================================= -->
+    <div id="vista-campo" class="vista-seccion">
+      
+      <div id="campo-principal">
+        <section class="tarjeta-seccion tarjeta-agro">
+          <h2 class="titulo-bloque" style="color: #86efac;">🌾 Guía de Siembra y Cosecha</h2>
+
+          <input type="text" id="input-filtro-semilla" class="filtro-semilla" placeholder="🔎 Filtrar semilla (ej. caña, arroz, cacao, limón...)" oninput="renderizarCultivos()">
+          <div id="cultivos-lista" class="cultivos-scroll"></div>
+
+          <div class="ficha-cultivo-header">
+            <div class="ficha-izq">
+              <div id="agro-icono" class="ficha-icono">🎋</div>
+              <div class="ficha-titulo">
+                <h3 id="agro-nombre">Caña de Azúcar</h3>
+                <span id="agro-ciclo">Ciclo estimado: 12 a 14 meses</span>
+              </div>
+            </div>
+            <button id="btn-consejos" class="btn-consejos" onclick="toggleConsejos()">💡 Consejos</button>
+          </div>
+
+          <div id="panel-consejos" class="panel-consejos">
+            <div class="consejo-etapa">
+              <strong>1. 🌱 Preparación y Siembra</strong>
+              <span id="consejo-etapa-1">--</span>
+            </div>
+            <div class="consejo-etapa">
+              <strong>2. 💧 Cuidado y Riego</strong>
+              <span id="consejo-etapa-2">--</span>
+            </div>
+            <div class="consejo-etapa">
+              <strong>3. 🐛 Plagas y Cosecha</strong>
+              <span id="consejo-etapa-3">--</span>
+            </div>
+          </div>
+
+          <div class="datos-agro-grid">
+            <div class="dato-agro-caja">
+              <small>📅 Época ideal de siembra</small>
+              <strong id="agro-epoca">--</strong>
+            </div>
+            <div class="dato-agro-caja">
+              <small>🌓 Luna recomendada</small>
+              <strong id="agro-luna">--</strong>
+            </div>
+          </div>
+
+          <div class="alerta-clima-agro" id="agro-alerta-clima">
+            🌤️ Selecciona una ciudad en la pestaña Clima para ver alertas meteorológicas de tu parcela.
+          </div>
+
+          <div class="calculadora-cosecha">
+            <div class="calc-fila">
+              <label for="fecha-siembra">🗓️ Fecha de siembra:</label>
+              <input type="date" id="fecha-siembra" class="input-fecha" onchange="calcularCosecha()">
+            </div>
+
+            <div class="resultado-cosecha">
+              <div class="cosecha-fecha-texto">
+                🌾 Cosecha estimada: <strong id="fecha-cosecha-res">--</strong>
+              </div>
+              <div class="barra-progreso-fondo">
+                <div id="barra-cosecha" class="barra-progreso-relleno"></div>
+              </div>
+              <div class="etapa-actual-texto">
+                <span id="etapa-cultivo-texto">Etapa: --</span>
+                <span id="dias-restantes-texto">--</span>
+              </div>
+
+              <button id="btn-abrir-guardar" class="btn-guardar-siembra" onclick="mostrarFormGuardar()">+ Guardar esta siembra</button>
+
+              <div id="form-guardar-siembra" class="form-guardar-siembra">
+                <input type="text" id="input-nombre-parcela" class="input-agro" placeholder="Nombre de parcela (ej. Lote del río)">
+                <div class="form-grid-terreno">
+                  <input type="number" id="input-superficie" class="input-agro" placeholder="Tamaño (ej. 2.5)" step="0.1" min="0.1">
+                  <select id="select-unidad" class="input-agro">
+                    <option value="ha">Hectáreas (ha)</option>
+                    <option value="m2">Metros² (m²)</option>
+                  </select>
+                </div>
+                <div class="acciones-form">
+                  <button class="btn-cancelar" onclick="ocultarFormGuardar()">Cancelar</button>
+                  <button class="btn-guardar-siembra" onclick="guardarSiembra()">Confirmar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+          <h2 class="titulo-bloque">📋 Mis Siembras Guardadas</h2>
+          <div id="lista-mis-siembras"></div>
+
+          <div class="respaldo-grid">
+            <button class="btn-respaldo" onclick="descargarRespaldo()">💾 Guardar respaldo</button>
+            <button class="btn-respaldo" onclick="document.getElementById('input-restaurar').click()">📂 Restaurar archivo</button>
+            <input type="file" id="input-restaurar" accept=".json" style="display:none;" onchange="restaurarRespaldo(event)">
+          </div>
+        </section>
+      </div>
+
+      <!-- =========================================================
+           EXPEDIENTE DETALLADO DE UNA SIEMBRA SELECCIONADA
+           ========================================================= -->
+      <div id="expediente-siembra" class="expediente-panel">
+        <div class="barra-volver">
+          <button class="btn-volver" onclick="cerrarExpediente()">← Volver a Campo</button>
+          <button class="btn-eliminar-siembra" onclick="eliminarSiembraActual()">🗑️ Borrar</button>
+        </div>
+
+        <section class="tarjeta-seccion tarjeta-agro">
+          <div class="ficha-izq" style="margin-bottom: 10px;">
+            <div id="exp-icono" class="ficha-icono">🎋</div>
+            <div class="ficha-titulo">
+              <h3 id="exp-titulo">Caña · Parcela 1</h3>
+              <span id="exp-fechas">Sembrado: --</span>
+            </div>
+          </div>
+
+          <div class="barra-progreso-fondo">
+            <div id="exp-barra" class="barra-progreso-relleno"></div>
+          </div>
+          <div class="etapa-actual-texto" style="margin-bottom:0;">
+            <span id="exp-etapa">--</span>
+            <span id="exp-dias">--</span>
+          </div>
+
+          <div class="caja-terreno-vivo">
+            <label>📐 Tamaño del terreno (ajusta para recalcular fertilizantes):</label>
+            <div class="form-grid-terreno" style="margin:0;">
+              <input type="number" id="exp-input-superficie" class="input-agro" step="0.1" min="0.01" oninput="actualizarTerrenoExpediente()">
+              <select id="exp-select-unidad" class="input-agro" onchange="actualizarTerrenoExpediente()">
+                <option value="ha">Hectáreas (ha)</option>
+                <option value="m2">Metros² (m²)</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sub-pestañas del expediente -->
+        <div class="subtabs-expediente">
+          <button id="subtab-fert" class="subtab-btn activa" onclick="cambiarSubtabExp('fert')">🧪 Fertilizantes</button>
+          <button id="subtab-plagas" class="subtab-btn" onclick="cambiarSubtabExp('plagas')">🐛 Plagas</button>
+          <button id="subtab-notas" class="subtab-btn" onclick="cambiarSubtabExp('notas')">📝 Bitácora</button>
+        </div>
+
+        <!-- SUBVISTA 1: SELECTOR DE FERTILIZANTES Y COSTOS -->
+        <div id="subvista-fert" class="subvista-exp activa">
+          <div class="selector-fert-box">
+            <small>✅ Selecciona qué fertilizantes vas a usar (⭐ = recomendados para este cultivo):</small>
+            <div id="exp-selector-fertilizantes" class="chips-seleccion-fert"></div>
+          </div>
+
+          <div id="exp-lista-fertilizantes"></div>
+
+          <div class="resumen-presupuesto">
+            <small>💰 Inversión estimada en fertilizantes seleccionados:</small>
+            <strong id="exp-total-pesos">$0 MXN</strong>
+            <button class="btn-whatsapp" onclick="enviarCotizacionWhatsApp()">📲 Enviar lista por WhatsApp</button>
+          </div>
+        </div>
+
+        <!-- SUBVISTA 2: SELECTOR DE PLAGAS Y TARJETAS INDIVIDUALES DE PESTICIDAS -->
+        <div id="subvista-plagas" class="subvista-exp">
+          <div class="selector-fert-box" style="margin-bottom:10px;">
+            <small>🐛 Selecciona la plaga para ver detección, control y productos:</small>
+            <div id="exp-selector-plagas" class="plagas-selector-scroll" style="margin-bottom:0; padding-bottom:2px;"></div>
+          </div>
+
+          <div id="exp-detalle-plaga"></div>
+        </div>
+
+        <!-- SUBVISTA 3: BITÁCORA DE LABORES -->
+        <div id="subvista-notas" class="subvista-exp">
+          <section class="tarjeta-seccion">
+            <h3 class="titulo-bloque">Anotar labor o aplicación</h3>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <input type="text" id="exp-input-nota" class="input-agro" placeholder="Ej. Se aplicaron 4 bultos de Urea..." onkeyup="if(event.key==='Enter') agregarNotaSiembra()">
+              <button class="btn-guardar-siembra" style="width:auto; padding:0 16px;" onclick="agregarNotaSiembra()">+</button>
+            </div>
+            <div id="exp-lista-notas"></div>
+          </section>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================
+    // ESTADO GLOBAL DE LA APP
+    // =========================================================
+    let ciudadActual = null;
+    let favoritas = JSON.parse(localStorage.getItem('mis_ciudades_clima')) || [];
+    let misSiembras = JSON.parse(localStorage.getItem('tlaloc_mis_siembras')) || [];
+    let preciosPersonalizados = JSON.parse(localStorage.getItem('tlaloc_precios_fert')) || {};
+    let climaActualDatos = null;
+    let siembraAbiertaId = null;
+    let plagaSeleccionadaIdx = 0;
+
+    // =========================================================
+    // NAVEGACIÓN ENTRE PESTAÑAS (CLIMA / CAMPO)
+    // =========================================================
+    function cambiarPestana(pestana) {
+      const btnClima = document.getElementById('tab-clima');
+      const btnCampo = document.getElementById('tab-campo');
+      const vistaClima = document.getElementById('vista-clima');
+      const vistaCampo = document.getElementById('vista-campo');
+
+      if (pestana === 'clima') {
+        btnClima.classList.add('activa');
+        btnCampo.classList.remove('activa-campo');
+        vistaClima.classList.add('activa');
+        vistaCampo.classList.remove('activa');
+      } else {
+        btnClima.classList.remove('activa');
+        btnCampo.classList.add('activa-campo');
+        vistaClima.classList.remove('activa');
+        vistaCampo.classList.add('activa');
+      }
+    }
+
+    // =========================================================
+    // DICCIONARIO METEOROLÓGICO
+    // =========================================================
+    function interpretarClima(codigo, esDia = 1) {
+      const mapa = {
+        0:  { texto: 'Despejado', icono: esDia ? '☀️' : '🌙' },
+        1:  { texto: 'Mayormente despejado', icono: esDia ? '🌤️' : '🌙' },
+        2:  { texto: 'Parcialmente nublado', icono: '⛅' },
+        3:  { texto: 'Nublado', icono: '☁️' },
+        45: { texto: 'Neblina', icono: '🌫️' },
+        48: { texto: 'Niebla densa', icono: '🌫️' },
+        51: { texto: 'Llovizna ligera', icono: '🌦️' },
+        53: { texto: 'Llovizna moderada', icono: '🌦️' },
+        55: { texto: 'Llovizna intensa', icono: '🌧️' },
+        61: { texto: 'Lluvia ligera', icono: '🌧️' },
+        63: { texto: 'Lluvia moderada', icono: '🌧️' },
+        65: { texto: 'Lluvia fuerte', icono: '⛈️' },
+        80: { texto: 'Chubascos ligeros', icono: '🌦️' },
+        81: { texto: 'Chubascos moderados', icono: '🌧️' },
+        82: { texto: 'Tormenta de lluvia', icono: '⛈️' },
+        95: { texto: 'Tormenta eléctrica', icono: '⛈️' },
+        96: { texto: 'Tormenta con granizo', icono: '⛈️' }
+      };
+      return mapa[codigo] || { texto: 'Variable', icono: '⛅' };
+    }
+
+    async function buscarCiudad() {
+      const texto = document.getElementById('input-buscar').value.trim();
+      const lista = document.getElementById('resultados-lista');
+      if (texto.length < 2) return;
+
+      lista.style.display = 'block';
+      lista.innerHTML = '<div class="resultado-item">Buscando...</div>';
+
+      try {
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(texto)}&count=5&language=es&format=json`;
+        const resp = await fetch(url);
+        const datos = await resp.json();
+
+        if (!datos.results || datos.results.length === 0) {
+          lista.innerHTML = '<div class="resultado-item">No se encontraron lugares con ese nombre.</div>';
+          return;
+        }
+
+        lista.innerHTML = '';
+        datos.results.forEach(lugar => {
+          const item = document.createElement('div');
+          item.className = 'resultado-item';
+          const subtitulo = [lugar.admin1, lugar.country].filter(Boolean).join(', ');
+          item.innerHTML = `<strong>${lugar.name}</strong><small>${subtitulo}</small>`;
+          
+          item.onclick = () => {
+            lista.style.display = 'none';
+            document.getElementById('input-buscar').value = '';
+            cargarClima({
+              id: `${lugar.latitude.toFixed(2)}_${lugar.longitude.toFixed(2)}`,
+              nombre: lugar.name,
+              region: subtitulo,
+              lat: lugar.latitude,
+              lon: lugar.longitude
+            });
+          };
+          lista.appendChild(item);
+        });
+      } catch (err) {
+        lista.innerHTML = '<div class="resultado-item">Error de conexión. Revisa tu internet.</div>';
+      }
+    }
+
+    function usarGPS() {
+      if (!navigator.geolocation) {
+        alert('Tu navegador no soporta ubicación GPS.');
+        return;
+      }
+
+      document.getElementById('estado-vacio').innerHTML = '<div style="font-size:42px;">📡</div><h2>Obteniendo ubicación...</h2><p>Acepta el permiso de ubicación en tu navegador.</p>';
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          cargarClima({
+            id: 'gps_actual',
+            nombre: 'Mi Ubicación',
+            region: `Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`,
+            lat: lat,
+            lon: lon
+          });
+        },
+        () => {
+          alert('No se pudo obtener la ubicación. Búscala manualmente arriba.');
+        }
+      );
+    }
+
+    async function cargarClima(ciudad) {
+      ciudadActual = ciudad;
+      document.getElementById('estado-vacio').style.display = 'none';
+      document.getElementById('panel-clima').style.display = 'block';
+      document.getElementById('ciudad-nombre').textContent = ciudad.nombre;
+      document.getElementById('ciudad-region').textContent = ciudad.region;
+      actualizarBotonFavorito();
+      renderizarFavoritas();
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${ciudad.lat}&longitude=${ciudad.lon}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+
+      try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        climaActualDatos = {
+          temp: Math.round(data.current.temperature_2m),
+          lluvia: data.daily.precipitation_probability_max[0],
+          viento: Math.round(data.current.wind_speed_10m),
+          humedad: data.current.relative_humidity_2m
+        };
+        actualizarAlertaClimaAgro();
+
+        if (data.current.is_day === 0) {
+          document.body.classList.add('noche');
+        } else {
+          document.body.classList.remove('noche');
+        }
+
+        const infoActual = interpretarClima(data.current.weather_code, data.current.is_day);
+        document.getElementById('clima-icono').textContent = infoActual.icono;
+        document.getElementById('clima-temp').textContent = `${climaActualDatos.temp}°`;
+        document.getElementById('clima-desc').textContent = infoActual.texto;
+        document.getElementById('clima-maxmin').textContent = `Máx: ${Math.round(data.daily.temperature_2m_max[0])}° · Mín: ${Math.round(data.daily.temperature_2m_min[0])}°`;
+
+        document.getElementById('detalle-humedad').textContent = `${climaActualDatos.humedad}%`;
+        document.getElementById('detalle-lluvia').textContent = `${climaActualDatos.lluvia}%`;
+        document.getElementById('detalle-viento').textContent = `${climaActualDatos.viento} km/h`;
+
+        const horasContenedor = document.getElementById('horas-lista');
+        horasContenedor.innerHTML = '';
+        const horaActualISO = data.current.time.slice(0, 13);
+        let indiceInicio = data.hourly.time.findIndex(t => t.startsWith(horaActualISO));
+        if (indiceInicio === -1) indiceInicio = 0;
+
+        for (let i = indiceInicio; i < indiceInicio + 24 && i < data.hourly.time.length; i++) {
+          const horaTexto = data.hourly.time[i].slice(11, 16);
+          const tempHora = Math.round(data.hourly.temperature_2m[i]);
+          const probLluvia = data.hourly.precipitation_probability[i];
+          const infoHora = interpretarClima(data.hourly.weather_code[i], data.hourly.is_day[i]);
+
+          horasContenedor.innerHTML += `
+            <div class="hora-item">
+              <span>${i === indiceInicio ? 'Ahora' : horaTexto}</span>
+              <div class="h-icono">${infoHora.icono}</div>
+              <strong>${tempHora}°</strong>
+              <div class="h-lluvia">💧${probLluvia}%</div>
+            </div>
+          `;
+        }
+
+        const diasContenedor = document.getElementById('dias-lista');
+        diasContenedor.innerHTML = '';
+        for (let d = 0; d < data.daily.time.length; d++) {
+          const fecha = new Date(data.daily.time[d] + 'T12:00:00');
+          const nombreDia = d === 0 ? 'Hoy' : fecha.toLocaleDateString('es-MX', { weekday: 'long' });
+          const infoDia = interpretarClima(data.daily.weather_code[d], 1);
+          const max = Math.round(data.daily.temperature_2m_max[d]);
+          const min = Math.round(data.daily.temperature_2m_min[d]);
+          const lluvia = data.daily.precipitation_probability_max[d];
+
+          diasContenedor.innerHTML += `
+            <div class="dia-fila">
+              <div class="dia-nombre">${nombreDia}</div>
+              <div style="font-size:20px;">${infoDia.icono}</div>
+              <div class="dia-lluvia">💧 ${lluvia}%</div>
+              <div class="dia-temps">${max}° <span>${min}°</span></div>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        alert('No se pudo cargar el pronóstico en este momento.');
+      }
+    }
+
+    function toggleFavorita() {
+      if (!ciudadActual) return;
+      const existe = favoritas.some(c => c.id === ciudadActual.id);
+      if (existe) {
+        favoritas = favoritas.filter(c => c.id !== ciudadActual.id);
+      } else {
+        favoritas.push(ciudadActual);
+      }
+      localStorage.setItem('mis_ciudades_clima', JSON.stringify(favoritas));
+      actualizarBotonFavorito();
+      renderizarFavoritas();
+    }
+
+    function actualizarBotonFavorito() {
+      const btn = document.getElementById('btn-favorito');
+      if (!ciudadActual) return;
+      const esFav = favoritas.some(c => c.id === ciudadActual.id);
+      btn.textContent = esFav ? '⭐ Guardada' : '☆ Guardar';
+      btn.classList.toggle('guardada', esFav);
+    }
+
+    function renderizarFavoritas() {
+      const cont = document.getElementById('favoritas-contenedor');
+      cont.innerHTML = '';
+      favoritas.forEach(fav => {
+        const chip = document.createElement('button');
+        chip.className = 'chip-favorita' + (ciudadActual && ciudadActual.id === fav.id ? ' activa' : '');
+        chip.textContent = `⭐ ${fav.nombre}`;
+        chip.onclick = () => cargarClima(fav);
+        cont.appendChild(chip);
+      });
+    }
+
+    // =========================================================
+    // 5. FASES DE LA LUNA + FECHAS DE LAS 4 ETAPAS PRINCIPALES
+    // =========================================================
+    function calcularFaseLunar(fecha = new Date()) {
+      const cicloSinodico = 29.53058867;
+      const lunaNuevaBase = new Date(Date.UTC(2000, 0, 6, 18, 14, 0));
+      const diasTranscurridos = (fecha - lunaNuevaBase) / (1000 * 60 * 60 * 24);
+      const edadLuna = ((diasTranscurridos % cicloSinodico) + cicloSinodico) % cicloSinodico;
+      const fraccion = edadLuna / cicloSinodico;
+      const iluminacion = Math.round(((1 - Math.cos(2 * Math.PI * fraccion)) / 2) * 100);
+
+      let nombre = '';
+      let consejo = '';
+
+      if (edadLuna < 1.85 || edadLuna >= 27.68) {
+        nombre = '🌑 Luna Nueva';
+        consejo = 'Etapa de reposo. Ideal para deshierbar, limpiar terrenos, abonar la tierra y controlar plagas.';
+      } else if (edadLuna < 5.54) {
+        nombre = '🌒 Luna Creciente';
+        consejo = 'La savia empieza a subir. Buen momento para preparar almácigos y sembrar hortalizas de hoja.';
+      } else if (edadLuna < 9.23) {
+        nombre = '🌓 Cuarto Creciente';
+        consejo = 'Gran vigor de crecimiento. Excelente fase para sembrar maíz, caña de azúcar, arroz y cultivos altos.';
+      } else if (edadLuna < 12.92) {
+        nombre = '🌔 Gibosa Creciente';
+        consejo = 'Mucha humedad y fuerza en tallos. Buena época para injertos y trasplantes.';
+      } else if (edadLuna < 16.61) {
+        nombre = '🌕 Luna Llena';
+        consejo = 'Máxima concentración de savia en hojas y frutos. Ideal para cosechar frutos jugosos, pero evita podar.';
+      } else if (edadLuna < 20.30) {
+        nombre = '🌖 Gibosa Menguante';
+        consejo = 'La savia empieza a descender hacia las raíces. Buen momento para sembrar tubérculos y raíces.';
+      } else if (edadLuna < 23.99) {
+        nombre = '🌗 Cuarto Menguante';
+        consejo = 'Fase ideal para podar, cortar madera o caña (dura más y no se apolilla) y cosechar granos secos.';
+      } else {
+        nombre = '🌘 Luna Menguante';
+        consejo = 'Ideal para limpieza de parcelas, arado profundo y preparación de tierra para el próximo ciclo.';
+      }
+
+      document.getElementById('luna-nombre').textContent = nombre;
+      document.getElementById('luna-detalle').textContent = `Iluminación: ${iluminacion}% · Día ${Math.floor(edadLuna) + 1} de 29`;
+      document.getElementById('luna-consejo').textContent = consejo;
+
+      const sombra = document.getElementById('luna-sombra');
+      if (fraccion <= 0.5) {
+        sombra.style.transform = `translateX(${-(fraccion * 2) * 100}%)`;
+      } else {
+        sombra.style.transform = `translateX(${((1 - fraccion) * 2) * 100}%)`;
+      }
+
+      const hitos = [
+        { etiqueta: '🌑 Luna Nueva', diaCiclo: 0 },
+        { etiqueta: '🌓 Cuarto Creciente', diaCiclo: cicloSinodico * 0.25 },
+        { etiqueta: '🌕 Luna Llena', diaCiclo: cicloSinodico * 0.50 },
+        { etiqueta: '🌗 Cuarto Menguante', diaCiclo: cicloSinodico * 0.75 }
+      ];
+
+      const proximosHitos = hitos.map(h => {
+        let diff = h.diaCiclo - edadLuna;
+        if (diff <= 0.5) diff += cicloSinodico;
+        const fechaHito = new Date(fecha.getTime() + diff * 86400000);
+        return {
+          etiqueta: h.etiqueta,
+          dias: diff,
+          fechaTexto: fechaHito.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+        };
+      }).sort((a, b) => a.dias - b.dias);
+
+      const gridFases = document.getElementById('luna-4-fases-grid');
+      gridFases.innerHTML = '';
+      proximosHitos.forEach(item => {
+        gridFases.innerHTML += `
+          <div class="luna-fecha-caja">
+            ${item.etiqueta}
+            <strong>${item.fechaTexto}</strong>
+          </div>
+        `;
+      });
+    }
+
+    // =========================================================
+    // 6. CATÁLOGO DE FERTILIZANTES CON ILUSTRACIONES SVG Y PRECIOS BASE
+    // =========================================================
+    const catalogoFertilizantes = {
+      urea: {
+        id: 'urea', nombre: 'Urea (46-00-00)', nombreCorto: 'Urea 46-0-0', presentacion: 'Bulto 50 kg', kgPorUnidad: 50,
+        dosisGeneralHa: 200,
+        uso: 'Aporta nitrógeno puro para crecimiento rápido de tallos y follaje verde.',
+        precioDefault: 680, img: 'img/urea.png', colorSaco: '#2563eb', sigla: '46-0-0'
+      },
+      dap: {
+        id: 'dap', nombre: 'DAP Fosfato (18-46-00)', nombreCorto: 'DAP 18-46-0', presentacion: 'Bulto 50 kg', kgPorUnidad: 50,
+        dosisGeneralHa: 120,
+        uso: 'Fósforo alto para enraizamiento fuerte y arranque en la siembra.',
+        precioDefault: 890, img: 'img/dap.png', colorSaco: '#16a34a', sigla: '18-46-0'
+      },
+      triple17: {
+        id: 'triple17', nombre: 'Triple 17 (17-17-17)', nombreCorto: 'Triple 17', presentacion: 'Bulto 50 kg', kgPorUnidad: 50,
+        dosisGeneralHa: 200,
+        uso: 'Fórmula balanceada (Nitrógeno, Fósforo y Potasio) para nutrición completa.',
+        precioDefault: 820, img: 'img/triple17.png', colorSaco: '#dc2626', sigla: '17-17-17'
+      },
+      sulfato: {
+        id: 'sulfato', nombre: 'Sulfato de Amonio (21-0-0)', nombreCorto: 'Sulfato 21-0-0', presentacion: 'Bulto 50 kg', kgPorUnidad: 50,
+        dosisGeneralHa: 250,
+        uso: 'Nitrógeno con azufre; ideal para caña, arroz y suelos alcalinos.',
+        precioDefault: 460, img: 'img/sulfato.png', colorSaco: '#d97706', sigla: '21-0-0'
+      },
+      cloruro: {
+        id: 'cloruro', nombre: 'Cloruro de Potasio (0-0-60)', nombreCorto: 'Potasio 0-0-60', presentacion: 'Bulto 50 kg', kgPorUnidad: 50,
+        dosisGeneralHa: 150,
+        uso: 'Mejora llenado de grano, tamaño de fruto y concentración de azúcar.',
+        precioDefault: 790, img: 'img/cloruro.png', colorSaco: '#9333ea', sigla: '0-0-60'
+      },
+      foliar: {
+        id: 'foliar', nombre: 'Foliar + Micronutrientes', nombreCorto: 'Foliar 5L', presentacion: 'Garrafa 5 L', kgPorUnidad: 5,
+        dosisGeneralHa: 5,
+        uso: 'Bioestimulante líquido con zinc, boro y magnesio para floración y amarre.',
+        precioDefault: 540, img: 'img/foliar.png', colorSaco: '#0d9488', sigla: 'FOLIAR'
+      }
+    };
+
+    function obtenerSVGProducto(fert) {
+      return `
+        <svg viewBox="0 0 64 72" width="52" height="60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="12" y="10" width="40" height="54" rx="7" fill="${fert.colorSaco}" stroke="#ffffff" stroke-width="2"/>
+          <path d="M12 16 Q32 22 52 16" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2"/>
+          <rect x="16" y="26" width="32" height="22" rx="4" fill="#ffffff"/>
+          <text x="32" y="40" font-size="8.5" font-weight="800" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${fert.sigla}</text>
+          <text x="32" y="58" font-size="7" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="sans-serif">${fert.presentacion}</text>
+        </svg>
+      `;
+    }
+
+    function obtenerSVGPesticida(prod) {
+      return `
+        <svg viewBox="0 0 64 72" width="52" height="60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="24" y="6" width="16" height="7" rx="2" fill="#e2e8f0"/>
+          <rect x="15" y="13" width="34" height="51" rx="8" fill="${prod.colorEnvase || '#dc2626'}" stroke="#ffffff" stroke-width="2"/>
+          <rect x="19" y="26" width="26" height="22" rx="4" fill="#ffffff"/>
+          <text x="32" y="39" font-size="7.5" font-weight="800" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${prod.sigla}</text>
+          <text x="32" y="57" font-size="6.8" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="sans-serif">${prod.tipo}</text>
+        </svg>
+      `;
+    }
+
+    // =========================================================
+    // 7. BASE DE DATOS DE 15 CULTIVOS + DOSIS + PLAGAS Y PESTICIDAS INDIVIDUALES
+    // =========================================================
+    const plagaRataCampo = {
+      nombre: '🐀 Rata de Campo',
+      critica: true,
+      sintomas: 'Tallos tiernos trozados en forma de bisel cerca del suelo, madrigueras en bordos/canales y caminos limpios entre surcos.',
+      control: 'Chapeo y limpieza de maleza en orillas y guardarrayas donde anidan. Colocar cebaderos hechos con tubos de PVC de 4 pulgadas en los bordos antes del engrosamiento del tallo.',
+      productosLista: [
+        {
+          nombre: 'Brodifacoum 0.005% (ej. Klerat Bloques)',
+          sigla: 'CEBO', tipo: 'Bloques', colorEnvase: '#b91c1c', img: 'img/rodenticida.png',
+          aplicacion: 'Bloque parafinado resistente a la humedad. Colocar 1 a 2 bloques dentro de tubos de PVC cada 10 a 15 metros sobre los bordos y orillas de canales. Revisar y reponer cada 7 días.'
+        },
+        {
+          nombre: 'Bromadiolona 0.005% (ej. Contrac Blox)',
+          sigla: 'CEBO', tipo: 'Bloques', colorEnvase: '#991b1b', img: 'img/rodenticida_2.png',
+          aplicacion: 'Anticoagulante de una sola ingesta. Amarrar con alambre dentro del cebadero de PVC para evitar que el roedor lo arrastre fuera y proteger perros o aves.'
+        }
+      ]
+    };
+
+    const baseCultivos = [
+      {
+        id: 'cana', nombre: 'Caña de Azúcar', icono: '🎋',
+        cicloTexto: '12 a 14 meses (365 - 420 días)', diasMin: 365, diasMax: 420,
+        epoca: 'Oct - Ene / May - Jul', lunaIdeal: '🌓 Creciente (siembra) · 🌗 Menguante (corte)',
+        c1: 'Surcar a 1.30 - 1.50 m de distancia. Colocar esquejes sanos con 2 a 3 yemas en el fondo del surco húmedo y tapar con una capa ligera de tierra.',
+        c2: 'Requiere buena humedad inicial para amacollar bien. Mantener limpios los drenajes para evitar encharcamientos prolongados.',
+        c3: 'Vigilar rata de campo y gusano barrenador. Suspender riego 30 a 45 días antes de la zafra para que el jugo concentre mayor azúcar.',
+        dosisHa: [
+          { fertId: 'dap', cantidadHa: 150 },
+          { fertId: 'urea', cantidadHa: 250 },
+          { fertId: 'cloruro', cantidadHa: 150 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🐛 Gusano Barrenador', critica: false,
+            sintomas: 'Orificios en entrenudos, aserrín rojizo y "corazón muerto" en brotes jóvenes.',
+            control: 'Liberación de avispa benéfica Trichogramma, corte bajo al cosechar y evitar exceso de fertilización nitrogenada tardía.',
+            productosLista: [
+              {
+                nombre: 'Clorantraniliprol (ej. Coragen)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#d97706', img: 'img/coragen.png',
+                aplicacion: 'Aplicar 150 a 200 ml/ha en aspersión dirigida al cogollo al detectar los primeros brotes dañados ("corazón muerto").'
+              },
+              {
+                nombre: 'Cipermetrina 20%',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#b45309', img: 'img/cipermetrina.png',
+                aplicacion: 'Dosis de 250 a 350 ml/ha en 200 L de agua. Aplicar temprano por la mañana o al atardecer.'
+              }
+            ]
+          },
+          {
+            nombre: '🦟 Mosca Pinta / Salivazo', critica: false,
+            sintomas: 'Espuma blanca en la base de los tallos y hojas amarillentas con rayas secas.',
+            control: 'Control de malezas hospederas en canales y rastreo ligero en cepas para exponer huevecillos.',
+            productosLista: [
+              {
+                nombre: 'Metarhizium anisopliae (Hongo Benéfico)',
+                sigla: 'BIO', tipo: 'Polvo/Líq', colorEnvase: '#15803d', img: 'img/metarhizium.png',
+                aplicacion: 'Control biológico ideal al inicio de lluvias (1 a 2 kg/ha). Aplicar nublado o al atardecer directo a la base de la cepa.'
+              },
+              {
+                nombre: 'Imidacloprid / Tiametoxam',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/imidacloprid.png',
+                aplicacion: 'Aplicar dirigido al cuello y base de los tallos cuando haya presencia activa de ninfas en espuma.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'arroz', nombre: 'Arroz', icono: '🌾',
+        cicloTexto: '4 a 5 meses (120 - 150 días)', diasMin: 120, diasMax: 150,
+        epoca: 'May - Jul (Temporal) / Ene - Feb (Riego)', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Nivelar bien el terreno y preparar cama húmeda. Usar semilla certificada pre-germinada o directa en suelos arcillosos que retengan agua.',
+        c2: 'Mantener lámina de agua de 5 a 10 cm durante el macollamiento y embuche. Controlar malezas en los primeros 35 días.',
+        c3: 'Controlar ratas en bordos y sogata. Drenar la parcela 15 días antes de cosechar cuando el 85% de los granos estén dorados.',
+        dosisHa: [
+          { fertId: 'dap', cantidadHa: 100 },
+          { fertId: 'urea', cantidadHa: 200 },
+          { fertId: 'cloruro', cantidadHa: 100 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🦗 Sogata / Chicharrita', critica: false,
+            sintomas: 'Amarillamiento de hojas ("hoja blanca") y secado en manchones circulares.',
+            control: 'Evitar láminas de agua excesivas y eliminar zacates hospederos en los bordos.',
+            productosLista: [
+              {
+                nombre: 'Tiametoxam 25% (ej. Actara)',
+                sigla: 'INSEC', tipo: 'Gránulos', colorEnvase: '#dc2626', img: 'img/tiametoxam.png',
+                aplicacion: 'Dosis de 150 a 200 g/ha en aspersión foliar cuando el muestreo con red entomológica supere 10 insectos por pase.'
+              },
+              {
+                nombre: 'Imidacloprid 35%',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#b91c1c', img: 'img/imidacloprid.png',
+                aplicacion: 'Aplicar 250 a 300 ml/ha cubriendo bien la base de las matas donde se refugia la sogata.'
+              }
+            ]
+          },
+          {
+            nombre: '🐛 Gusano Cogollero / Trozador', critica: false,
+            sintomas: 'Hojas comidas en bordes y plántulas cortadas antes de inundar.',
+            control: 'Inundar ligeramente la tabla durante 48 horas para ahogar larvas en el suelo.',
+            productosLista: [
+              {
+                nombre: 'Lambda-cihalotrina (ej. Karate Zeon)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#d97706', img: 'img/karate.png',
+                aplicacion: 'Aplicar 200 a 250 ml/ha en las primeras horas de la mañana antes de que el gusano se entierre.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'maiz', nombre: 'Maíz', icono: '🌽',
+        cicloTexto: '3.5 a 4.5 meses (105 - 135 días)', diasMin: 105, diasMax: 135,
+        epoca: 'May - Jun (Primavera) / Nov - Dic (Otoño)', lunaIdeal: '🌓 Creciente (siembra) · 🌗 Menguante (grano)',
+        c1: 'Sembrar a 4 - 5 cm de profundidad con 80 cm entre surcos y 20 - 25 cm entre plantas, aprovechando buena humedad inicial.',
+        c2: 'Aporcar tierra al tallo a los 30 días para darle anclaje contra el viento. No debe faltarle agua durante la floración (espigado y jiloteo).',
+        c3: 'Revisar el cogollo temprano contra gusano cogollero. Para elote tierno cortar a los 75-85 días; para grano seco doblar mazorca al madurar.',
+        dosisHa: [
+          { fertId: 'dap', cantidadHa: 100 },
+          { fertId: 'urea', cantidadHa: 200 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🐛 Gusano Cogollero', critica: true,
+            sintomas: 'Perforaciones en hojas nuevas y excremento húmedo como aserrín dentro del cogollo.',
+            control: 'Revisión temprana desde los 10 días de nacido; aplicar en las primeras horas de la mañana cuando la larva sale a comer.',
+            productosLista: [
+              {
+                nombre: 'Benzoato de Emamectina (ej. Denim)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/denim.png',
+                aplicacion: 'Dosis de 100 a 150 ml/ha dirigiendo la boquilla directo al cogollo del maíz en etapa temprana.'
+              },
+              {
+                nombre: 'Espinetoram (ej. Exalt)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#d97706', img: 'img/exalt.png',
+                aplicacion: 'Aplicar 75 a 100 ml/ha con buena penetración al cogollo; alta efectividad en larvas chicas y medianas.'
+              },
+              {
+                nombre: 'Clorpirifós Granulado (Salero)',
+                sigla: 'GRAN', tipo: 'Gránulos', colorEnvase: '#991b1b', img: 'img/granulado.png',
+                aplicacion: 'Aplicación manual localizada ("puñito" o salero) directo en el cogollo afectado (8 a 12 kg/ha).'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'frijol', nombre: 'Frijol', icono: '🫘',
+        cicloTexto: '2.5 a 3 meses (75 - 90 días)', diasMin: 75, diasMax: 90,
+        epoca: 'Sep - Nov / Feb - Mar', lunaIdeal: '🌒 Luna Creciente o 🌓 Cuarto Creciente',
+        c1: 'Sembrar en tierra suelta y bien drenada a 3 - 4 cm de profundidad. Excelente cultivo para rotar después del maíz porque fija nitrógeno.',
+        c2: 'Riegos ligeros sin encharcar (el exceso de agua pudre la raíz). Evitar entrar al cultivo cuando el follaje esté mojado.',
+        c3: 'Vigilar mosquita blanca y chicharrita. Arrancar las matas por la mañana cuando las vainas estén amarillas/secas.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 150 },
+          { fertId: 'foliar', cantidadHa: 5 }
+        ],
+        plagas: [
+          {
+            nombre: '🪰 Mosquita Blanca y Chicharrita', critica: true,
+            sintomas: 'Hojas enrolladas hacia abajo, mosaico amarillo y transmisión de virus dorado.',
+            control: 'Colocar trampas amarillas pegajosas en bordes y eliminar malezas antes de sembrar.',
+            productosLista: [
+              {
+                nombre: 'Imidacloprid 35%',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/imidacloprid.png',
+                aplicacion: 'Aplicar 250 ml/ha mojando bien el envés (parte de abajo) de las hojas donde se posa la mosquita.'
+              },
+              {
+                nombre: 'Jabón Potásico + Extracto de Neem',
+                sigla: 'ORG', tipo: 'Líquido', colorEnvase: '#15803d', img: 'img/neem.png',
+                aplicacion: 'Opción orgánica preventiva: 5 a 10 ml por litro de agua cada 7 días al atardecer.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'cacao', nombre: 'Cacao', icono: '🍫',
+        cicloTexto: 'Perenne (Cosecha principal cada 6 meses)', diasMin: 180, diasMax: 210,
+        epoca: 'May - Ago (Inicio de lluvias)', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Trasplantar plantas injertadas bajo sombra temporal (plátano o árboles maderables) a distancia de 3 x 3 metros.',
+        c2: 'Mantener hojarasca al pie del árbol para conservar humedad. Realizar podas de formación y ventilación cada año.',
+        c3: 'Retirar mazorcas enfermas con moniliasis fuera de la huerta. Cosechar mazorcas maduras cortando el pedúnculo con tijera.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 200 },
+          { fertId: 'cloruro', cantidadHa: 100 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          {
+            nombre: '🍄 Moniliasis y Mazorca Negra', critica: true,
+            sintomas: 'Manchas café chocolate que cubren la mazorca con polvo blanco/crema.',
+            control: 'Poda de sombra para entrada de luz y aire; cortar y enterrar mazorcas enfermas cada semana sin dejarlas en el árbol.',
+            productosLista: [
+              {
+                nombre: 'Oxicloruro de Cobre 85%',
+                sigla: 'FUNGI', tipo: 'Polvo', colorEnvase: '#0284c7', img: 'img/cobre.png',
+                aplicacion: 'Dosis de 3 a 4 g por litro de agua aplicado directo a las mazorcas sanas jóvenes cada 20-30 días en época lluviosa.'
+              },
+              {
+                nombre: 'Caldo Bordelés (Cobre + Cal)',
+                sigla: 'FUNGI', tipo: 'Líquido', colorEnvase: '#0369a1', img: 'img/bordeles.png',
+                aplicacion: 'Preparación tradicional protectora; aplicar después de realizar la poda y remoción de mazorcas dañadas.'
+              }
+            ]
+          },
+          {
+            nombre: '🐿️ Ardillas y Ratas', critica: false,
+            sintomas: 'Mazorcas maduras perforadas en el árbol con granos comidos.',
+            control: 'Cosecha oportuna cada 15 días sin dejar mazorcas sobremaduras en el árbol.',
+            productosLista: [
+              {
+                nombre: 'Brodifacoum Bloques Parafinados',
+                sigla: 'CEBO', tipo: 'Bloques', colorEnvase: '#b91c1c', img: 'img/rodenticida.png',
+                aplicacion: 'Asegurar el bloque con alambre dentro de tubos de PVC colocados en horquetas altas de los árboles afectados.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'platano', nombre: 'Plátano / Banano', icono: '🍌',
+        cicloTexto: '9 a 11 meses (270 - 330 días)', diasMin: 270, diasMax: 330,
+        epoca: 'Todo el año con humedad (mejor May - Jul)', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Seleccionar hijuelos ("espada") sanos, limpiarles raíces viejas y plantar en cepas de 40 x 40 cm con materia orgánica.',
+        c2: 'Demanda bastante agua y potasio. Hacer deshije dejando solo la planta madre, un hijo sucesor y un nieto.',
+        c3: 'Deshojar hojas secas o con sigatoka. Apuntalar las matas con racimo pesado contra vientos.',
+        dosisHa: [
+          { fertId: 'urea', cantidadHa: 250 },
+          { fertId: 'cloruro', cantidadHa: 300 },
+          { fertId: 'dap', cantidadHa: 100 }
+        ],
+        plagas: [
+          {
+            nombre: '🪲 Picudo Negro del Plátano', critica: true,
+            sintomas: 'Galerías en el cormo (cepa), amarillamiento y caída de plantas con racimo.',
+            control: 'Trampas tipo disco o sándwich con trozos de pseudotallo fresco en el suelo y limpieza de residuos de cosecha.',
+            productosLista: [
+              {
+                nombre: 'Beauveria bassiana (Hongo Benéfico)',
+                sigla: 'BIO', tipo: 'Polvo', colorEnvase: '#15803d', img: 'img/beauveria.png',
+                aplicacion: 'Espolvorear o asperjar sobre las caras cortadas de las trampas de pseudotallo para infectar a los picudos adultos.'
+              },
+              {
+                nombre: 'Fipronil / Clorpirifós',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/fipronil.png',
+                aplicacion: 'Aplicar dirigido a la base de la cepa (drench) en focos de alta infestación.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'yuca', nombre: 'Yuca', icono: '🥔',
+        cicloTexto: '8 a 10 meses (240 - 300 días)', diasMin: 240, diasMax: 300,
+        epoca: 'Abr - Jun / Sep - Oct', lunaIdeal: '🌖 Gibosa o 🌗 Cuarto Menguante',
+        c1: 'Cortar estacas de tallos maduros de 20 cm con al menos 5 yemas y enterrar inclinadas sobre camellones sueltos.',
+        c2: 'Muy resistente a la sequía una vez enraizada. Mantener libre de maleza los primeros 3 meses.',
+        c3: 'Aflojar la tierra alrededor antes de jalar el tallo para no quebrar las raíces tuberosas.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 150 },
+          { fertId: 'cloruro', cantidadHa: 100 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🐛 Gusano Cachón', critica: false,
+            sintomas: 'Defoliación rápida de hojas tiernas por orugas grandes.',
+            control: 'Recolección manual en parcelas chicas y conservación de avispas benéficas.',
+            productosLista: [
+              {
+                nombre: 'Bacillus thuringiensis (ej. Dipel)',
+                sigla: 'BIO', tipo: 'Polvo', colorEnvase: '#15803d', img: 'img/dipel.png',
+                aplicacion: 'Insecticida biológico selectivo para orugas: 500 g a 1 kg/ha aplicado al atardecer.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'limon', nombre: 'Limón Persa', icono: '🍋',
+        cicloTexto: 'Flujo de floración a corte: 4 meses (110 - 130 días)', diasMin: 110, diasMax: 130,
+        epoca: 'Jun - Ago (Trasplante) / Producción todo el año', lunaIdeal: '🌓 Creciente (siembra) · 🌗 Menguante (poda)',
+        c1: 'Plantar árboles injertados en terrenos sin encharcamiento (5 x 5 m o 6 x 4 m) dejando el injerto 15 cm sobre el suelo.',
+        c2: 'Riego constante en época seca favorece floración continua. Aplicar micronutrientes en brotes tiernos.',
+        c3: 'Vigilar psílido asiático y minador de la hoja. Cortar el fruto verde intenso con cáscara lisa.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 250 },
+          { fertId: 'urea', cantidadHa: 150 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          {
+            nombre: '🦟 Psílido Asiático (Diaphorina)', critica: true,
+            sintomas: 'Brotes tiernos deformados con secreción cerosa blanca; vector del HLB (Dragón Amarillo).',
+            control: 'Monitoreo continuo de brotes nuevos y podas sincronizadas.',
+            productosLista: [
+              {
+                nombre: 'Imidacloprid / Tiametoxam',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/imidacloprid.png',
+                aplicacion: 'Aplicar en brotación tierna (1 a 1.5 ml/L de agua) rotando ingredientes activos.'
+              },
+              {
+                nombre: 'Aceite Mineral Agrícola',
+                sigla: 'ACEITE', tipo: 'Líquido', colorEnvase: '#0d9488', img: 'img/aceite.png',
+                aplicacion: '10 ml por litro de agua sobre brotes tiernos; actúa por contacto sin generar resistencia.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'papaya', nombre: 'Papaya', icono: '🥭',
+        cicloTexto: '7 a 9 meses a primer corte (210 - 270 días)', diasMin: 210, diasMax: 270,
+        epoca: 'Mar - May / Ago - Oct', lunaIdeal: '🌒 Luna Creciente',
+        c1: 'Trasplantar plántulas vigorosas en camellones altos para evitar pudrición del cuello de raíz por exceso de lluvia.',
+        c2: 'Requiere riegos ligeros frecuentes y alta fertilización en potasio y boro para evitar deformación de frutos.',
+        c3: 'Controlar ácaros y pulgones. Cosechar cuando aparezcan las primeras rayas amarillas en la cáscara.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 250 },
+          { fertId: 'cloruro', cantidadHa: 200 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          {
+            nombre: '🕷️ Araña Roja / Ácaro Blanco', critica: false,
+            sintomas: 'Hojas bronceadas, deformación de cogollo y caída de flores.',
+            control: 'Eliminar hojas viejas muy infestadas y evitar estrés por sequía.',
+            productosLista: [
+              {
+                nombre: 'Abamectina 1.8%',
+                sigla: 'ACAR', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/abamectina.png',
+                aplicacion: '1 ml por litro de agua dirigido al cogollo y envés de hojas tiernas.'
+              },
+              {
+                nombre: 'Azufre Humectable',
+                sigla: 'ACAR', tipo: 'Polvo', colorEnvase: '#ca8a04', img: 'img/azufre.png',
+                aplicacion: '3 a 5 g/L de agua; aplicar únicamente en horas frescas (nunca con sol intenso).'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'sorgo', nombre: 'Sorgo', icono: '🌾',
+        cicloTexto: '3.5 a 4 meses (105 - 120 días)', diasMin: 105, diasMax: 120,
+        epoca: 'May - Jul / Oct - Dic', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Sembrar en suelo bien mullido a 3 cm de profundidad. Tolera mejor el calor y la falta de agua que el maíz.',
+        c2: 'Controlar maleza en los primeros 25 días; después el cultivo sombrea el surco.',
+        c3: 'Vigilar pulgón amarillo en el envés de las hojas. Cosechar cuando el grano esté duro.',
+        dosisHa: [
+          { fertId: 'dap', cantidadHa: 100 },
+          { fertId: 'urea', cantidadHa: 150 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🦟 Pulgón Amarillo del Sorgo', critica: true,
+            sintomas: 'Colonias amarillas debajo de las hojas y melaza pegajosa que mancha la panoja.',
+            control: 'Revisar envés de hojas cada semana y conservar catarinas/crisopas benéficas.',
+            productosLista: [
+              {
+                nombre: 'Sulfoxaflor (ej. Transform)',
+                sigla: 'INSEC', tipo: 'Gránulos', colorEnvase: '#dc2626', img: 'img/transform.png',
+                aplicacion: 'Dosis baja (50 a 75 g/ha) altamente selectivo; controla pulgón sin matar catarinas benéficas.'
+              },
+              {
+                nombre: 'Flupyradifurone (ej. Sivanto)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#d97706', img: 'img/sivanto.png',
+                aplicacion: 'Aplicar 350 a 500 ml/ha asegurando buena cobertura en el envés de las hojas.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'calabaza', nombre: 'Calabaza', icono: '🎃',
+        cicloTexto: '3 a 3.5 meses (90 - 105 días)', diasMin: 90, diasMax: 105,
+        epoca: 'Todo el año en clima cálido (mejor May - Ago)', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Sembrar 2 a 3 semillas por golpe dejando 1.5 - 2 m entre matas para que extienda guía libremente.',
+        c2: 'Riegos moderados al pie de la planta evitando mojar demasiado las hojas para prevenir cenicilla.',
+        c3: 'Para calabacita tierna cortar a los 45-55 días; para madura esperar a que el pedúnculo se seque.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 150 },
+          { fertId: 'foliar', cantidadHa: 5 }
+        ],
+        plagas: [
+          {
+            nombre: '🐛 Barrenador del Fruto y Cenicilla', critica: false,
+            sintomas: 'Polvo blanco en hojas y gusanos perforando frutos tiernos.',
+            control: 'Recolección de frutos dañados y ventilación entre guías.',
+            productosLista: [
+              {
+                nombre: 'Azufre Humectable / Bicarbonato de Potasio',
+                sigla: 'FUNGI', tipo: 'Polvo', colorEnvase: '#ca8a04', img: 'img/azufre.png',
+                aplicacion: 'Para cenicilla polvorienta: 3 a 4 g/L de agua cubriendo ambas caras de la hoja.'
+              },
+              {
+                nombre: 'Espinosad (ej. Spintor)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#15803d', img: 'img/spintor.png',
+                aplicacion: 'Para barrenador del fruto: 1 ml/L de agua en floración y amarre de frutos.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'sandia', nombre: 'Sandía', icono: '🍉',
+        cicloTexto: '2.5 a 3 meses (80 - 90 días)', diasMin: 80, diasMax: 90,
+        epoca: 'Ene - Mar / Sep - Oct', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Prefiere suelos sueltos, arenosos o francos con mucho sol y buen drenaje.',
+        c2: 'Reducir el riego en los últimos 12 días antes del corte para concentrar dulzor y evitar que se raje.',
+        c3: 'Está lista cuando el zarcillo más cercano al fruto se seca y la mancha de abajo se vuelve amarilla crema.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 200 },
+          { fertId: 'cloruro', cantidadHa: 150 },
+          { fertId: 'foliar', cantidadHa: 5 }
+        ],
+        plagas: [
+          {
+            nombre: '🦟 Pulgón y Mosquita Blanca', critica: false,
+            sintomas: 'Hojas encarrujadas y debilitamiento de guías.',
+            control: 'Trampas amarillas y eliminación de malezas alrededor de la melga.',
+            productosLista: [
+              {
+                nombre: 'Tiametoxam / Acetamiprid',
+                sigla: 'INSEC', tipo: 'Polvo/Grán', colorEnvase: '#dc2626', img: 'img/tiametoxam.png',
+                aplicacion: 'Aplicar 150 a 200 g/ha dirigido al envés de las hojas al detectar las primeras colonias.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'chile', nombre: 'Chile / Ají', icono: '🌶️',
+        cicloTexto: '3 a 4 meses (90 - 120 días)', diasMin: 90, diasMax: 120,
+        epoca: 'Feb - Abr / Ago - Oct', lunaIdeal: '🌒 Creciente (almácigo) · 🌕 Llena (corte)',
+        c1: 'Germinar en charolas o semillero protegido y trasplantar cuando la planta tenga 12 - 15 cm.',
+        c2: 'Mantener humedad uniforme sin saturar; el estrés hídrico provoca caída de flor.',
+        c3: 'Vigilar picudo del chile y ácaro blanco. Realizar cortes periódicos para estimular nueva floración.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 200 },
+          { fertId: 'urea', cantidadHa: 100 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          {
+            nombre: '🪲 Picudo del Chile (Barrenillo)', critica: true,
+            sintomas: 'Botones florales y frutos tiernos amarillos que caen al suelo con larvas adentro.',
+            control: 'Recolectar y enterrar todos los frutos caídos del suelo para cortar el ciclo del insecto.',
+            productosLista: [
+              {
+                nombre: 'Oxamil (ej. Vydate)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#991b1b', img: 'img/vydate.png',
+                aplicacion: 'Aplicar en etapa de floración y cuajado (2 a 3 L/ha) respetando los días a cosecha.'
+              },
+              {
+                nombre: 'Tiametoxam / Fipronil',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/tiametoxam.png',
+                aplicacion: 'Rotar cada 10 días durante la emisión de botones florales.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'tomate', nombre: 'Tomate / Jitomate', icono: '🍅',
+        cicloTexto: '2.5 a 3.5 meses (75 - 105 días)', diasMin: 75, diasMax: 105,
+        epoca: 'Sep - Nov / Ene - Mar', lunaIdeal: '🌒 Luna Creciente',
+        c1: 'Trasplantar en surcos altos y colocar tutores (estacas e hilo) desde el primer mes.',
+        c2: 'Podar chupones axilares en variedades indeterminadas y regar directo a la raíz sin mojar follaje.',
+        c3: 'Controlar tizón temprano y mosquita blanca. Cortar en estado pintón o rojo firme.',
+        dosisHa: [
+          { fertId: 'triple17', cantidadHa: 250 },
+          { fertId: 'cloruro', cantidadHa: 150 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          {
+            nombre: '🪰 Mosquita Blanca y Paratrioza', critica: true,
+            sintomas: 'Amarillamiento de bordes, hojas moradas y frutos sin maduración pareja.',
+            control: 'Trampas amarillas y limpieza de malezas solanáceas en orillas.',
+            productosLista: [
+              {
+                nombre: 'Spiromesifen (ej. Oberon)',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/oberon.png',
+                aplicacion: 'Controla estados inmaduros (huevecillos y ninfas) de mosquita y paratrioza (500 ml/ha).'
+              },
+              {
+                nombre: 'Imidacloprid 35%',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#b91c1c', img: 'img/imidacloprid.png',
+                aplicacion: 'Aplicar al cuello de la planta tras el trasplante para protección sistémica inicial.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'pina', nombre: 'Piña', icono: '🍍',
+        cicloTexto: '14 a 18 meses (420 - 540 días)', diasMin: 420, diasMax: 540,
+        epoca: 'May - Ago / Oct - Nov', lunaIdeal: '🌓 Cuarto Creciente',
+        c1: 'Plantar hijuelos basales o coronas orejados 3 días en suelos ácidos y con excelente drenaje.',
+        c2: 'Tolera sequía gracias a sus hojas suculentas, pero agradece fertilización foliar con potasio y magnesio.',
+        c3: 'Cosechar cuando los ojos de la base tomen color amarillo dorado y desprendan aroma dulce.',
+        dosisHa: [
+          { fertId: 'urea', cantidadHa: 200 },
+          { fertId: 'cloruro', cantidadHa: 250 },
+          { fertId: 'foliar', cantidadHa: 10 }
+        ],
+        plagas: [
+          plagaRataCampo,
+          {
+            nombre: '🐜 Cochinilla Harinosa', critica: false,
+            sintomas: 'Hojas rojizas marchitas desde las puntas y presencia de hormigas en la base.',
+            control: 'Desinfectar hijuelos antes de plantar y controlar hormigueros en la parcela.',
+            productosLista: [
+              {
+                nombre: 'Diazinón / Malatión',
+                sigla: 'INSEC', tipo: 'Líquido', colorEnvase: '#dc2626', img: 'img/diazinon.png',
+                aplicacion: 'Inmersión de hijuelos por 5 minutos antes de sembrar o aplicación dirigida a la base de la planta.'
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
+    let cultivoSeleccionado = baseCultivos[0];
+    let consejosAbiertos = false;
+
+    function renderizarCultivos() {
+      const filtro = document.getElementById('input-filtro-semilla').value.toLowerCase().trim();
+      const cont = document.getElementById('cultivos-lista');
+      cont.innerHTML = '';
+
+      const filtrados = baseCultivos.filter(c => c.nombre.toLowerCase().includes(filtro));
+
+      if (filtrados.length === 0) {
+        cont.innerHTML = '<span style="font-size:13px; opacity:0.8;">No se encontró esa semilla.</span>';
+        return;
+      }
+
+      filtrados.forEach(cultivo => {
+        const btn = document.createElement('button');
+        btn.className = 'chip-cultivo' + (cultivo.id === cultivoSeleccionado.id ? ' activo' : '');
+        btn.textContent = `${cultivo.icono} ${cultivo.nombre}`;
+        btn.onclick = () => seleccionarCultivo(cultivo);
+        cont.appendChild(btn);
+      });
+    }
+
+    function seleccionarCultivo(cultivo) {
+      cultivoSeleccionado = cultivo;
+      renderizarCultivos();
+
+      document.getElementById('agro-icono').textContent = cultivo.icono;
+      document.getElementById('agro-nombre').textContent = cultivo.nombre;
+      document.getElementById('agro-ciclo').textContent = `Ciclo estimado: ${cultivo.cicloTexto}`;
+      document.getElementById('agro-epoca').textContent = cultivo.epoca;
+      document.getElementById('agro-luna').textContent = cultivo.lunaIdeal;
+
+      document.getElementById('consejo-etapa-1').textContent = cultivo.c1;
+      document.getElementById('consejo-etapa-2').textContent = cultivo.c2;
+      document.getElementById('consejo-etapa-3').textContent = cultivo.c3;
+
+      actualizarAlertaClimaAgro();
+      calcularCosecha();
+    }
+
+    function toggleConsejos() {
+      consejosAbiertos = !consejosAbiertos;
+      const panel = document.getElementById('panel-consejos');
+      const btn = document.getElementById('btn-consejos');
+      panel.classList.toggle('visible', consejosAbiertos);
+      btn.classList.toggle('abierto', consejosAbiertos);
+      btn.textContent = consejosAbiertos ? '✕ Cerrar' : '💡 Consejos';
+    }
+
+    function actualizarAlertaClimaAgro() {
+      const alerta = document.getElementById('agro-alerta-clima');
+      if (!climaActualDatos) return;
+
+      if (climaActualDatos.lluvia >= 70) {
+        alerta.innerHTML = `🌧️ <strong>Alerta por lluvia alta (${climaActualDatos.lluvia}%):</strong> Evita aplicar fertilizantes granulados o foliares hoy porque la lluvia los puede lavar. Revisa drenajes en parcelas bajas.`;
+      } else if (climaActualDatos.viento >= 30) {
+        alerta.innerHTML = `💨 <strong>Precaución por viento (${climaActualDatos.viento} km/h):</strong> No es recomendable fumigar hoy para evitar deriva del producto.`;
+      } else if (climaActualDatos.temp >= 34) {
+        alerta.innerHTML = `☀️ <strong>Calor intenso (${climaActualDatos.temp}°C):</strong> Programa el riego muy temprano o al caer la tarde para evitar evaporación.`;
+      } else {
+        alerta.innerHTML = `✅ <strong>Clima favorable hoy (${climaActualDatos.temp}°C · Lluvia ${climaActualDatos.lluvia}%):</strong> Buenas condiciones para labores de limpieza, revisión de cultivo o fertilización.`;
+      }
+    }
+
+    function calcularCosecha() {
+      const inputFecha = document.getElementById('fecha-siembra').value;
+      if (!inputFecha) return;
+
+      const fechaSiembra = new Date(inputFecha + 'T12:00:00');
+      const fechaCosechaMin = new Date(fechaSiembra.getTime() + cultivoSeleccionado.diasMin * 86400000);
+      const fechaCosechaMax = new Date(fechaSiembra.getTime() + cultivoSeleccionado.diasMax * 86400000);
+
+      const formato = { day: 'numeric', month: 'short', year: 'numeric' };
+      document.getElementById('fecha-cosecha-res').textContent =
+        `${fechaCosechaMin.toLocaleDateString('es-MX', formato)} al ${fechaCosechaMax.toLocaleDateString('es-MX', formato)}`;
+
+      const hoy = new Date();
+      const diasTranscurridos = Math.floor((hoy - fechaSiembra) / 86400000);
+      const duracionPromedio = (cultivoSeleccionado.diasMin + cultivoSeleccionado.diasMax) / 2;
+
+      let porcentaje = Math.round((diasTranscurridos / duracionPromedio) * 100);
+      if (porcentaje < 0) porcentaje = 0;
+      if (porcentaje > 100) porcentaje = 100;
+
+      document.getElementById('barra-cosecha').style.width = `${porcentaje}%`;
+
+      let etapa = '';
+      if (diasTranscurridos < 0) {
+        etapa = `Programada en ${Math.abs(diasTranscurridos)} días`;
+      } else if (porcentaje < 15) {
+        etapa = '🌱 Germinación y enraizamiento';
+      } else if (porcentaje < 60) {
+        etapa = '🌿 Crecimiento y desarrollo foliar';
+      } else if (porcentaje < 90) {
+        etapa = '🌼 Floración y llenado de grano/fruto';
+      } else {
+        etapa = '🌾 ¡Maduración lista para cosecha!';
+      }
+
+      document.getElementById('etapa-cultivo-texto').textContent = etapa;
+      const diasFaltan = Math.max(0, Math.round(duracionPromedio - diasTranscurridos));
+      document.getElementById('dias-restantes-texto').textContent =
+        diasTranscurridos < 0 ? 'Por iniciar' : (diasFaltan === 0 ? '¡Listo!' : `Faltan ~${diasFaltan} días`);
+    }
+
+    // =========================================================
+    // 8. GUARDAR, LISTAR Y ABRIR EXPEDIENTE DE MIS SIEMBRAS
+    // =========================================================
+    function mostrarFormGuardar() {
+      document.getElementById('btn-abrir-guardar').style.display = 'none';
+      document.getElementById('form-guardar-siembra').classList.add('visible');
+    }
+
+    function ocultarFormGuardar() {
+      document.getElementById('form-guardar-siembra').classList.remove('visible');
+      document.getElementById('btn-abrir-guardar').style.display = 'block';
+    }
+
+    function guardarSiembra() {
+      const fechaSiembra = document.getElementById('fecha-siembra').value;
+      const nombreParcela = document.getElementById('input-nombre-parcela').value.trim() || `Parcela ${misSiembras.length + 1}`;
+      const superficie = parseFloat(document.getElementById('input-superficie').value) || 1;
+      const unidad = document.getElementById('select-unidad').value;
+
+      const fertIniciales = cultivoSeleccionado.dosisHa.map(d => d.fertId);
+
+      const nuevaSiembra = {
+        id: 'siembra_' + Date.now(),
+        cultivoId: cultivoSeleccionado.id,
+        cultivoNombre: cultivoSeleccionado.nombre,
+        icono: cultivoSeleccionado.icono,
+        parcela: nombreParcela,
+        fechaSiembra: fechaSiembra,
+        superficie: superficie,
+        unidad: unidad,
+        diasMin: cultivoSeleccionado.diasMin,
+        diasMax: cultivoSeleccionado.diasMax,
+        fertilizantesElegidos: fertIniciales,
+        notas: []
+      };
+
+      misSiembras.unshift(nuevaSiembra);
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+
+      document.getElementById('input-nombre-parcela').value = '';
+      document.getElementById('input-superficie').value = '';
+      ocultarFormGuardar();
+      renderizarMisSiembras();
+    }
+
+    function renderizarMisSiembras() {
+      const cont = document.getElementById('lista-mis-siembras');
+      if (misSiembras.length === 0) {
+        cont.innerHTML = '<p style="font-size:13px; opacity:0.8; text-align:center; padding:12px 0;">Aún no tienes siembras guardadas. Simula una fecha arriba y presiona <strong>"+ Guardar esta siembra"</strong>.</p>';
+        return;
+      }
+
+      cont.innerHTML = '';
+      const hoy = new Date();
+
+      misSiembras.forEach(s => {
+        const fSiembra = new Date(s.fechaSiembra + 'T12:00:00');
+        const duracionProm = (s.diasMin + s.diasMax) / 2;
+        const diasTrans = Math.floor((hoy - fSiembra) / 86400000);
+        let pct = Math.round((diasTrans / duracionProm) * 100);
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        const faltan = Math.max(0, Math.round(duracionProm - diasTrans));
+
+        cont.innerHTML += `
+          <div class="siembra-card" onclick="abrirExpediente('${s.id}')">
+            <div class="siembra-card-top">
+              <div class="siembra-card-titulo">${s.icono} ${s.cultivoNombre} · ${s.parcela}</div>
+              <div class="siembra-card-badge">${s.superficie} ${s.unidad}</div>
+            </div>
+            <div class="siembra-card-sub">
+              Sembrado: ${fSiembra.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} · 
+              <strong>${diasTrans < 0 ? 'Por iniciar' : (faltan === 0 ? '¡Lista para cosecha!' : `Faltan ~${faltan} días`)}</strong>
+            </div>
+            <div class="barra-progreso-fondo" style="margin-bottom:0;">
+              <div class="barra-progreso-relleno" style="width:${pct}%;"></div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function abrirExpediente(id) {
+      const s = misSiembras.find(item => item.id === id);
+      if (!s) return;
+      siembraAbiertaId = id;
+      plagaSeleccionadaIdx = 0;
+
+      if (!s.fertilizantesElegidos) {
+        const cultivo = baseCultivos.find(c => c.id === s.cultivoId) || baseCultivos[0];
+        s.fertilizantesElegidos = cultivo.dosisHa.map(d => d.fertId);
+      }
+
+      document.getElementById('campo-principal').style.display = 'none';
+      document.getElementById('expediente-siembra').classList.add('activo');
+
+      document.getElementById('exp-icono').textContent = s.icono;
+      document.getElementById('exp-titulo').textContent = `${s.cultivoNombre} · ${s.parcela}`;
+
+      const fSiembra = new Date(s.fechaSiembra + 'T12:00:00');
+      const fCosecha = new Date(fSiembra.getTime() + ((s.diasMin + s.diasMax) / 2) * 86400000);
+      document.getElementById('exp-fechas').textContent =
+        `Siembra: ${fSiembra.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · Cosecha aprox: ${fCosecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+      const hoy = new Date();
+      const duracionProm = (s.diasMin + s.diasMax) / 2;
+      const diasTrans = Math.floor((hoy - fSiembra) / 86400000);
+      let pct = Math.max(0, Math.min(100, Math.round((diasTrans / duracionProm) * 100)));
+      const faltan = Math.max(0, Math.round(duracionProm - diasTrans));
+
+      document.getElementById('exp-barra').style.width = `${pct}%`;
+      document.getElementById('exp-etapa').textContent = `Avance: ${pct}%`;
+      document.getElementById('exp-dias').textContent = diasTrans < 0 ? 'Por iniciar' : (faltan === 0 ? '¡Listo!' : `Faltan ~${faltan} días`);
+
+      document.getElementById('exp-input-superficie').value = s.superficie;
+      document.getElementById('exp-select-unidad').value = s.unidad;
+
+      cambiarSubtabExp('fert');
+      renderizarFertilizantesExpediente();
+      renderizarPlagasExpediente();
+      renderizarNotasExpediente();
+    }
+
+    function cerrarExpediente() {
+      siembraAbiertaId = null;
+      document.getElementById('expediente-siembra').classList.remove('activo');
+      document.getElementById('campo-principal').style.display = 'block';
+      renderizarMisSiembras();
+    }
+
+    function eliminarSiembraActual() {
+      if (!siembraAbiertaId) return;
+      if (!confirm('¿Seguro que deseas eliminar esta siembra guardada?')) return;
+      misSiembras = misSiembras.filter(s => s.id !== siembraAbiertaId);
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+      cerrarExpediente();
+    }
+
+    function cambiarSubtabExp(subtab) {
+      ['fert', 'plagas', 'notas'].forEach(t => {
+        document.getElementById(`subtab-${t}`).classList.toggle('activa', t === subtab);
+        document.getElementById(`subvista-${t}`).classList.toggle('activa', t === subtab);
+      });
+    }
+
+    function actualizarTerrenoExpediente() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      const val = parseFloat(document.getElementById('exp-input-superficie').value);
+      s.superficie = val > 0 ? val : 0.1;
+      s.unidad = document.getElementById('exp-select-unidad').value;
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+      renderizarFertilizantesExpediente();
+    }
+
+    function toggleFertilizanteSiembra(fertId) {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      if (!s.fertilizantesElegidos) s.fertilizantesElegidos = [];
+
+      if (s.fertilizantesElegidos.includes(fertId)) {
+        s.fertilizantesElegidos = s.fertilizantesElegidos.filter(id => id !== fertId);
+      } else {
+        s.fertilizantesElegidos.push(fertId);
+      }
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+      renderizarFertilizantesExpediente();
+    }
+
+    function actualizarPrecioFert(fertId, nuevoPrecio) {
+      const p = parseFloat(nuevoPrecio);
+      preciosPersonalizados[fertId] = p >= 0 ? p : 0;
+      localStorage.setItem('tlaloc_precios_fert', JSON.stringify(preciosPersonalizados));
+      renderizarFertilizantesExpediente();
+    }
+
+    function renderizarFertilizantesExpediente() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      const cultivo = baseCultivos.find(c => c.id === s.cultivoId) || baseCultivos[0];
+      const hectareas = s.unidad === 'ha' ? s.superficie : (s.superficie / 10000);
+      const recomendadosIds = cultivo.dosisHa.map(d => d.fertId);
+
+      const selectorCont = document.getElementById('exp-selector-fertilizantes');
+      selectorCont.innerHTML = '';
+
+      Object.values(catalogoFertilizantes).forEach(fert => {
+        const estaMarcado = s.fertilizantesElegidos.includes(fert.id);
+        const esRecomendado = recomendadosIds.includes(fert.id);
+        const btn = document.createElement('button');
+        btn.className = 'chip-fert-toggle' + (estaMarcado ? ' marcado' : '');
+        btn.textContent = `${estaMarcado ? '✓ ' : '+ '}${fert.nombreCorto}${esRecomendado ? ' ⭐' : ''}`;
+        btn.onclick = () => toggleFertilizanteSiembra(fert.id);
+        selectorCont.appendChild(btn);
+      });
+
+      const cont = document.getElementById('exp-lista-fertilizantes');
+      cont.innerHTML = '';
+      let costoTotalGeneral = 0;
+
+      if (s.fertilizantesElegidos.length === 0) {
+        cont.innerHTML = '<p style="font-size:13px; opacity:0.8; text-align:center; padding:14px;">Selecciona arriba uno o más fertilizantes para calcular cuántos bultos o litros necesitas.</p>';
+        document.getElementById('exp-total-pesos').textContent = '$0 MXN';
+        return;
+      }
+
+      s.fertilizantesElegidos.forEach(fertId => {
+        const fert = catalogoFertilizantes[fertId];
+        if (!fert) return;
+
+        const dosisCultivo = cultivo.dosisHa.find(d => d.fertId === fertId);
+        const cantidadHa = dosisCultivo ? dosisCultivo.cantidadHa : fert.dosisGeneralHa;
+
+        const cantidadTotalKgL = cantidadHa * hectareas;
+        const unidadesExactas = cantidadTotalKgL / fert.kgPorUnidad;
+        const unidadesComprar = Math.max(1, Math.ceil(unidadesExactas));
+        const precioUnitario = preciosPersonalizados[fert.id] !== undefined ? preciosPersonalizados[fert.id] : fert.precioDefault;
+        const subtotal = unidadesComprar * precioUnitario;
+        costoTotalGeneral += subtotal;
+
+        const svgFallback = encodeURIComponent(obtenerSVGProducto(fert));
+
+        cont.innerHTML += `
+          <div class="fert-card">
+            <div class="fert-top">
+              <div class="fert-ilustracion">
+                <img src="${fert.img}" alt="${fert.nombre}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,${svgFallback}';">
+              </div>
+              <div class="fert-info">
+                <h4>${fert.nombre}</h4>
+                <p>${fert.uso}</p>
+              </div>
+            </div>
+            <div class="fert-calculo-grid">
+              <div class="fert-dato">
+                <small>Cantidad (${fert.presentacion})</small>
+                <strong>${unidadesComprar} unid.</strong>
+                <small style="margin-top:2px;">(${cantidadTotalKgL.toFixed(1)} kg/L)</small>
+              </div>
+              <div class="fert-dato">
+                <small>Precio local ($)</small>
+                <input type="number" class="input-precio-fert" value="${precioUnitario}" onchange="actualizarPrecioFert('${fert.id}', this.value)">
+              </div>
+              <div class="fert-dato">
+                <small>Subtotal</small>
+                <strong style="color:#fef08a;">$${subtotal.toLocaleString('es-MX')}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('exp-total-pesos').textContent = `$${costoTotalGeneral.toLocaleString('es-MX')} MXN`;
+    }
+
+    function enviarCotizacionWhatsApp() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      const cultivo = baseCultivos.find(c => c.id === s.cultivoId) || baseCultivos[0];
+      const hectareas = s.unidad === 'ha' ? s.superficie : (s.superficie / 10000);
+
+      let mensaje = `🌾 *TLALOC - Lista de Insumos*\n`;
+      mensaje += `Cultivo: *${s.cultivoNombre}* (${s.parcela})\n`;
+      mensaje += `Terreno: *${s.superficie} ${s.unidad}*\n\n`;
+
+      let total = 0;
+      s.fertilizantesElegidos.forEach(fertId => {
+        const fert = catalogoFertilizantes[fertId];
+        if (!fert) return;
+        const dosisCultivo = cultivo.dosisHa.find(d => d.fertId === fertId);
+        const cantidadHa = dosisCultivo ? dosisCultivo.cantidadHa : fert.dosisGeneralHa;
+
+        const cant = Math.max(1, Math.ceil((cantidadHa * hectareas) / fert.kgPorUnidad));
+        const precio = preciosPersonalizados[fert.id] !== undefined ? preciosPersonalizados[fert.id] : fert.precioDefault;
+        const sub = cant * precio;
+        total += sub;
+        mensaje += `• ${fert.nombre}: *${cant} ${fert.presentacion}* ($${sub.toLocaleString('es-MX')})\n`;
+      });
+
+      mensaje += `\n💰 *Total estimado: $${total.toLocaleString('es-MX')} MXN*`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+    }
+
+    function seleccionarPlagaExpediente(idx) {
+      plagaSeleccionadaIdx = idx;
+      renderizarPlagasExpediente();
+    }
+
+    function renderizarPlagasExpediente() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      const cultivo = baseCultivos.find(c => c.id === s.cultivoId) || baseCultivos[0];
+
+      const selectorCont = document.getElementById('exp-selector-plagas');
+      selectorCont.innerHTML = '';
+
+      cultivo.plagas.forEach((p, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'chip-plaga' + (idx === plagaSeleccionadaIdx ? ' activa' : '');
+        btn.textContent = p.nombre;
+        btn.onclick = () => seleccionarPlagaExpediente(idx);
+        selectorCont.appendChild(btn);
+      });
+
+      const plaga = cultivo.plagas[plagaSeleccionadaIdx] || cultivo.plagas[0];
+      const detalleCont = document.getElementById('exp-detalle-plaga');
+
+      let htmlProductos = '';
+      if (plaga.productosLista && plaga.productosLista.length > 0) {
+        htmlProductos = `<div class="titulo-pesticidas-sub">🧪 Productos / Pesticidas Recomendados</div>`;
+        plaga.productosLista.forEach(prod => {
+          const svgFallback = encodeURIComponent(obtenerSVGPesticida(prod));
+          htmlProductos += `
+            <div class="pesticida-card">
+              <div class="fert-top" style="margin-bottom:8px;">
+                <div class="fert-ilustracion">
+                  <img src="${prod.img}" alt="${prod.nombre}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,${svgFallback}';">
+                </div>
+                <div class="fert-info">
+                  <h4 style="color:#fca5a5;">${prod.nombre}</h4>
+                  <p>Presentación: ${prod.tipo}</p>
+                </div>
+              </div>
+              <div class="pesticida-ficha-aplicacion">
+                <strong>📋 Ficha de aplicación:</strong> ${prod.aplicacion}
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      detalleCont.innerHTML = `
+        <div class="plaga-card ${plaga.critica ? 'critica' : ''}">
+          <h4>${plaga.nombre} ${plaga.critica ? '· ⚠️ Prioritaria' : ''}</h4>
+          <p><strong>🔍 Detección y daños:</strong> ${plaga.sintomas}</p>
+          <div class="plaga-control">
+            <strong>🛡️ Control cultural y preventivo:</strong><br>
+            ${plaga.control}
+          </div>
+        </div>
+        ${htmlProductos}
+      `;
+    }
+
+    function agregarNotaSiembra() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      const input = document.getElementById('exp-input-nota');
+      const texto = input.value.trim();
+      if (!s || !texto) return;
+
+      s.notas.unshift({
+        id: Date.now(),
+        fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
+        texto: texto
+      });
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+      input.value = '';
+      renderizarNotasExpediente();
+    }
+
+    function borrarNotaSiembra(notaId) {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      if (!s) return;
+      s.notas = s.notas.filter(n => n.id !== notaId);
+      localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+      renderizarNotasExpediente();
+    }
+
+    function renderizarNotasExpediente() {
+      const s = misSiembras.find(item => item.id === siembraAbiertaId);
+      const cont = document.getElementById('exp-lista-notas');
+      if (!s || s.notas.length === 0) {
+        cont.innerHTML = '<p style="font-size:13px; opacity:0.75; text-align:center;">Sin anotaciones aún. Registra aquí tus fechas de abono, riego o fumigación.</p>';
+        return;
+      }
+
+      cont.innerHTML = '';
+      s.notas.forEach(n => {
+        cont.innerHTML += `
+          <div class="nota-item">
+            <div>
+              <small>📅 ${n.fecha}</small>
+              <span>${n.texto}</span>
+            </div>
+            <button onclick="borrarNotaSiembra(${n.id})" style="background:none; border:none; color:#fca5a5; cursor:pointer; font-size:14px;">✕</button>
+          </div>
+        `;
+      });
+    }
+
+    // =========================================================
+    // 9. RESPALDO Y RESTAURACIÓN EN ARCHIVO JSON
+    // =========================================================
+    function descargarRespaldo() {
+      const respaldo = {
+        fecha: new Date().toISOString(),
+        favoritas: favoritas,
+        misSiembras: misSiembras,
+        preciosPersonalizados: preciosPersonalizados
+      };
+      const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `respaldo-tlaloc-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function restaurarRespaldo(event) {
+      const archivo = event.target.files[0];
+      if (!archivo) return;
+      const lector = new FileReader();
+      lector.onload = (e) => {
+        try {
+          const datos = JSON.parse(e.target.result);
+          if (datos.misSiembras) {
+            misSiembras = datos.misSiembras;
+            localStorage.setItem('tlaloc_mis_siembras', JSON.stringify(misSiembras));
+          }
+          if (datos.favoritas) {
+            favoritas = datos.favoritas;
+            localStorage.setItem('mis_ciudades_clima', JSON.stringify(favoritas));
+          }
+          if (datos.preciosPersonalizados) {
+            preciosPersonalizados = datos.preciosPersonalizados;
+            localStorage.setItem('tlaloc_precios_fert', JSON.stringify(preciosPersonalizados));
+          }
+          renderizarMisSiembras();
+          renderizarFavoritas();
+          alert('✅ Respaldo restaurado correctamente.');
+        } catch (err) {
+          alert('❌ El archivo seleccionado no es un respaldo válido de TLALOC.');
+        }
+      };
+      lector.readAsText(archivo);
+    }
+
+    // =========================================================
+    // INICIALIZACIÓN
+    // =========================================================
+    window.onload = () => {
+      const hoyISO = new Date().toISOString().split('T')[0];
+      document.getElementById('fecha-siembra').value = hoyISO;
+
+      calcularFaseLunar();
+      seleccionarCultivo(baseCultivos[0]);
+      renderizarFavoritas();
+      renderizarMisSiembras();
+
+      if (favoritas.length > 0) {
+        cargarClima(favoritas[0]);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "TLALOC - Clima y Campo",
+  "short_name": "TLALOC",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b132b",
+  "theme_color": "#1e62d0",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icono.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

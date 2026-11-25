@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tlaloc-v2.0';
+const CACHE_NAME = 'tlaloc-offline-auto';
 const ARCHIVOS_BASE = [
   './',
   './index.html',
@@ -25,26 +25,29 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Para consultas a APIs de clima, intentar red primero y si no hay señal responder vacío sin romper la app
+  // Solo interceptar peticiones GET
+  if (event.request.method !== 'GET') return;
+
+  // 1. Para consultas de clima (Open-Meteo): red primero, respaldo vacío si no hay señal
   if (event.request.url.includes('open-meteo.com')) {
     event.respondWith(
-      fetch(event.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
+      fetch(event.request).catch(
+        () => new Response('{}', { headers: { 'Content-Type': 'application/json' } })
+      )
     );
     return;
   }
 
-  // Para archivos de la app e imágenes: caché primero, luego red (guardando nuevas imágenes automáticamente)
+  // 2. Para archivos de la app e imágenes: RED PRIMERO (actualiza caché solo) y CACHÉ SI NO HAY SEÑAL
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).then((networkResp) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResp.clone());
-            return networkResp;
-          });
-        })
-      );
-    })
+    fetch(event.request)
+      .then((networkResp) => {
+        if (networkResp && networkResp.status === 200) {
+          const copia = networkResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copia));
+        }
+        return networkResp;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
